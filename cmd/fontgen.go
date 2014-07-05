@@ -49,7 +49,7 @@ func generatePixFont(name string, w, h int, d map[rune]map[int]string) {
 	template := `
 		package %s
 
-		import "bitbucket.org/pbnjay/pixfont"
+		import "github.com/pbnjay/pixfont"
 
 		var Font *pixfont.PixFont
 
