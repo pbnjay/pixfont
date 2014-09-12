@@ -40,12 +40,13 @@ var (
 	startX    = flag.Int("x", 0, "starting X position")
 	width     = flag.Int("w", 0, "chop width")
 	alphabet  = flag.String("a", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", "alphabet to extract")
+	varWidth  = flag.Bool("v", false, "produce variable width font")
 
 	textName = flag.String("txt", "", "text file to extract pixel font from")
 	outName  = flag.String("o", "", "package name to create (becomes <myfont>.go)")
 )
 
-func generatePixFont(name string, w, h int, d map[rune]map[int]string) {
+func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
 	template := `
 		package %s
 
@@ -57,6 +58,7 @@ func generatePixFont(name string, w, h int, d map[rune]map[int]string) {
 			charMap := %#v
 			data := %#v
 			Font = pixfont.NewPixFont(%d, %d, charMap, data)
+			Font.SetVariableWidth(%t)
 		}
 	`
 	encoded := []uint32{}
@@ -101,6 +103,7 @@ func generatePixFont(name string, w, h int, d map[rune]map[int]string) {
 	}
 
 	fnt := pixfont.NewPixFont(uint8(w), uint8(h), cm, encoded)
+	fnt.SetVariableWidth(v)
 
 	f, err := os.OpenFile(name+".go", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -114,7 +117,7 @@ func generatePixFont(name string, w, h int, d map[rune]map[int]string) {
 	fmt.Fprintln(f, sd.PrefixString("// "))
 
 	// create the code from the template and go fmt it
-	code := fmt.Sprintf(template, name, cm, encoded, w, h)
+	code := fmt.Sprintf(template, name, cm, encoded, w, h, v)
 	bcode, _ := format.Source([]byte(code))
 	fmt.Fprintln(f, string(bcode))
 
@@ -230,6 +233,9 @@ func processImage(filename string) (allLetters map[rune]map[int]string, maxWidth
 			}
 
 			leftPad := (maxWidth - w) / 2
+			if *varWidth {
+				leftPad = 0
+			}
 			for yy := 0; yy < *height; yy++ {
 				l[yy] = strings.Repeat(" ", leftPad) + l[yy]
 				fmt.Printf("%c  [%*s]\n", a, -maxWidth, l[yy])
@@ -315,7 +321,7 @@ func main() {
 	}
 
 	if *outName != "" {
-		generatePixFont(*outName, maxWidth, *height, allLetters)
+		generatePixFont(*outName, maxWidth, *height, *varWidth, allLetters)
 		fmt.Fprintln(os.Stderr, "Created package file:", *outName+".go")
 	}
 }
