@@ -2,7 +2,7 @@ pixfont
 =======
 
 A simple, lightweight Pixel Font (aka bitmap fonts) package for Go that works
-with the standard `image/draw` package. If you want scaling, anti-aliasing, 
+with the standard `image/draw` package. If you want scaling, anti-aliasing,
 TrueType fonts, or other "fancy" features then I suggest you check out
 https://code.google.com/p/freetype-go/
 
@@ -25,7 +25,7 @@ import (
         "image/color"
         "image/png"
         "os"
-        
+
         "github.com/pbnjay/pixfont"
 )
 
@@ -130,6 +130,13 @@ func main() {
 ```
 
 Resulting Image: ![](examples/hello_minecraftia.png) -- Note the missing `,` and `!` since they were not included in the extracted character set. I'll leave inclusion of those as an excercise for the reader.
+
+Variable Width Fonts
+--------------------
+
+To create a variable width font (i.e. an `i` is skinnier than a `w`), just add ``-v`` to all invocations of ``fontgen``. When you need to make edits to the font, just ensure that characters are flush with the left edge for best display.
+
+Here's the minecraftia result image with a variable width: ![](examples/hello_minecraftia_var.png)
 
 License
 -------
