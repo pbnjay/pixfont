@@ -30,4 +30,5 @@ var Font8x8 = &PixFont{
 	8, 8,
 	eightMap,
 	eightData,
+	8,
 }
