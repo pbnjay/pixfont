@@ -16,6 +16,9 @@ import (
 // to the Public Domain 8x8 fixed font with some unicode characters.
 var DefaultFont = Font8x8
 
+// Spacing is the pixel spacing to use between letters (1 px by default)
+var Spacing = 1
+
 // Drawable is an interface which supports setting an x,y coordinate to a color.
 type Drawable interface {
 	Set(x, y int, c color.Color)
@@ -76,7 +79,7 @@ func (p *PixFont) DrawRune(dr Drawable, x, y int, c rune, clr color.Color) (bool
 			if (d[yy] & bitMask) != 0 {
 				dr.Set(x+xx, y+yy, clr)
 				if xx >= w {
-					w = xx + 1
+					w = xx + Spacing
 				}
 			}
 			bitMask <<= 1
@@ -92,7 +95,7 @@ func (p *PixFont) DrawRune(dr Drawable, x, y int, c rune, clr color.Color) (bool
 func (p *PixFont) DrawString(dr Drawable, x, y int, s string, clr color.Color) int {
 	for _, c := range s {
 		_, w := p.DrawRune(dr, x, y, c, clr)
-		x += w + 1
+		x += w + Spacing
 	}
 	return x
 }
@@ -114,7 +117,7 @@ func (p *PixFont) MeasureRune(c rune) (bool, int) {
 		bitMask := uint32(1) << psub
 		for xx := w; xx < int(p.charWidth); xx++ {
 			if (d[yy]&bitMask) != 0 && xx >= w {
-				w = xx + 1
+				w = xx + Spacing
 			}
 			bitMask <<= 1
 		}
@@ -127,7 +130,7 @@ func (p *PixFont) MeasureString(s string) int {
 	x := 0
 	for _, c := range s {
 		_, w := p.MeasureRune(c)
-		x += w + 1
+		x += w + Spacing
 	}
 	return x
 }
