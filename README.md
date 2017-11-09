@@ -4,7 +4,7 @@ pixfont
 A simple, lightweight Pixel Font (aka bitmap fonts) package for Go that works
 with the standard `image/draw` package. If you want scaling, anti-aliasing,
 TrueType fonts, or other "fancy" features then I suggest you check out
-https://code.google.com/p/freetype-go/
+https://github.com/golang/freetype
 
 However, if you just want to put a little bit of text in your generated image
 and don't care about aliasing, or if you can't afford run-time font
@@ -141,4 +141,4 @@ Here's the minecraftia result image with a variable width: ![](examples/hello_mi
 License
 -------
 
-Code for this package is release under the MIT License, use it as you wish. As previously stated, the 8x8 font was released into the public domain by Marcel Sondaar / IBM.
+Code for this package is release under the MIT License. The bundled 8x8 font was released into the public domain by Marcel Sondaar / IBM.
