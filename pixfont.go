@@ -41,6 +41,11 @@ func NewPixFont(w, h uint8, cm map[rune]uint16, d []uint32) *PixFont {
 	return &PixFont{w, h, cm, d, w}
 }
 
+// GetHeight returns the height of the font in pixels.
+func (p *PixFont) GetHeight() int {
+	return int(p.charHeight)
+}
+
 // SetVariableWidth toggles the PixFont between drawing using variable width
 // per character or the default fixed-width representation.
 func (p *PixFont) SetVariableWidth(isVar bool) {
