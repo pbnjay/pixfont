@@ -8,7 +8,7 @@
 // no anti-aliasing), and that a column of pixels separate each character to
 // ensure best results. Then simply run:
 //
-//      ./fontget -img mypixelfont.png -o myfont
+//      ./fontgen -img mypixelfont.png -o myfont
 //
 // Add myfont.go to your project, then just use Font.DrawString(...) to add
 // text to your image!
