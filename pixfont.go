@@ -103,13 +103,13 @@ func (p *PixFont) DrawString(dr Drawable, x, y int, s string, clr color.Color) i
 // MeasureRune measures the advance of a rune drawn using this PixFont.
 func (p *PixFont) MeasureRune(c rune) (bool, int) {
 	poff, haveChar := p.charmap[c]
-	if p.varCharWidth == p.charWidth {
-		return haveChar, int(p.charWidth)
-	}
 	if !haveChar {
-		return haveChar, int(p.varCharWidth)
+		return false, int(p.varCharWidth)
 	}
-	w := 0
+	w := int(p.charWidth)
+	if p.varCharWidth != p.charWidth {
+		w = 0
+	}
 	pindex := int(poff >> 2)
 	psub := (poff & 0x03) * 8
 	d := p.data[pindex : pindex+int(p.charHeight)]
