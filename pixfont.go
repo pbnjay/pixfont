@@ -115,7 +115,7 @@ func (p *PixFont) MeasureRune(c rune) (bool, int) {
 	d := p.data[pindex : pindex+int(p.charHeight)]
 	for yy := 0; yy < int(p.charHeight); yy++ {
 		bitMask := uint32(1) << psub
-		for xx := w; xx < int(p.charWidth); xx++ {
+		for xx := 0; xx < int(p.charWidth); xx++ {
 			if (d[yy]&bitMask) != 0 && xx >= w {
 				w = xx + Spacing
 			}
