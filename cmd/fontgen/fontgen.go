@@ -173,7 +173,7 @@ func processImage(filename string) (allLetters map[rune]map[int]string, maxWidth
 	// scan across the image in the crop region, saving pixels as you go.
 	// if at any point we see an "empty" column of pixels, we assume it
 	// is a character boundary and move to the next alphabet letter.
-	curAlpha := 0
+	curAlpha := *alphabet
 	curWidth := 0
 	curLetter := make(map[int]string)
 	for x := *startX; x < *startX+*width; x++ {
@@ -199,19 +199,20 @@ func processImage(filename string) (allLetters map[rune]map[int]string, maxWidth
 
 		if isEmpty {
 			if len(curLetter) != 0 {
-				if curAlpha < len(*alphabet) {
+				if len(curAlpha) > 0 {
 					curWidth-- // remove last blank column
 					for yy, ln := range curLetter {
 						if len(ln) >= curWidth {
 							curLetter[yy] = ln[:curWidth]
 						}
 					}
-					allLetters[rune((*alphabet)[curAlpha])] = curLetter
+					r, nbytes := utf8.DecodeRuneInString(curAlpha)
+					allLetters[r] = curLetter
+					curAlpha = curAlpha[nbytes:]
 				}
 				if curWidth > maxWidth {
 					maxWidth = curWidth
 				}
-				curAlpha++
 			}
 			curWidth = 0
 			curLetter = make(map[int]string)
