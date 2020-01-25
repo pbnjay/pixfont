@@ -256,7 +256,7 @@ func processText(filename string) (allLetters map[rune]map[int]string, maxWidth 
 	allLetters = make(map[rune]map[int]string)
 	re := regexp.MustCompile(`[^\n]*\n`)
 	count := 0
-	hh := 0
+	hh, maxHeight := 0, 0
 	lastCh := rune(0)
 
 	for _, bline := range re.FindAll(input, -1) {
@@ -266,6 +266,9 @@ func processText(filename string) (allLetters map[rune]map[int]string, maxWidth 
 		if lastCh != c {
 			count = 0
 			hh = len(allLetters[lastCh])
+			if hh > maxHeight {
+				maxHeight = hh
+			}
 			allLetters[c] = make(map[int]string)
 			newalpha += string(c)
 		}
@@ -279,7 +282,12 @@ func processText(filename string) (allLetters map[rune]map[int]string, maxWidth 
 	}
 
 	*alphabet = newalpha
-	*height = hh
+	if *width == 0 {
+		*width = maxWidth
+	}
+	if *height == 0 {
+		*height = maxHeight
+	}
 
 	if *outName != "" {
 		return
