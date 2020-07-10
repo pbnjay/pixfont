@@ -92,22 +92,22 @@ func packFont(w, h int, d map[rune]map[int]string) ([]uint32, map[rune]uint16) {
 	// 8                                E == 0b00000000000000000000000000000001 == 0x00000001
 	// 9                            EEEEE == 0b00000000000000000000000000011111 == 0x0000001f
 
-	u8PerCh := uint16((w-1)>>3) + 1 // 0-8 take up 1 byte, 9-16 take up 2, 17-24 take up 3, 24+ take up 4
-	chPerU32 := 4 / u8PerCh         // we can fit 4, 2 or 1 glyphs per u32
-	spacing := 4 / chPerU32         // we must skip 1, 2, or 4 8-bit units between each glyph start
+	u8PerCh := ((w - 1) >> 3) + 1 // 0-8 take up 1 byte, 9-16 take up 2, 17-24 take up 3, 24+ take up 4
+	chPerU32 := 4 / u8PerCh       // we can fit 4, 2 or 1 glyphs per u32
+	spacing := 4 / chPerU32       // we must skip 1, 2, or 4 8-bit units between each glyph start
 
-	costPerLine := (len(d) + int(chPerU32/2)) / int(chPerU32) // #u32 per horizontal line in font
-	costTotal := h * costPerLine                              // #u32s required for the whole font
+	costPerLine := (len(d) + chPerU32 - 1) / chPerU32 // #of whole u32 per horizontal line in font
+	costTotal := h * costPerLine                      // #of whole u32s required for the whole font
 
 	encoded := make([]uint32, costTotal)
 
 	// i8 tracks the number of 8-bit units we've skipped
-	var i8 uint16
+	var i8 int
 	for _, c := range chs {
 		matrix := d[rune(c)]
 
-		i32 := int(i8>>2) * h  // i32 is the index into encoded for the u32 for this char
-		dist := int(i8 & 0b11) // how many u8 units into the u32 we're offset
+		i32 := (i8 >> 2) * h // i32 is the index into encoded for the u32 for this char
+		dist := i8 & 0b11    // how many u8 units into the u32 we're offset
 		cm[rune(c)] = uint16((i32 << 2) | dist)
 
 		for y := 0; y < h; y++ {
