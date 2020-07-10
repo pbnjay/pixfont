@@ -47,21 +47,10 @@ var (
 	outName  = flag.String("o", "", "package name to create (becomes <myfont>.go)")
 )
 
-func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
-	template := `
-		package %s
-
-		import "github.com/pbnjay/pixfont"
-
-		var Font *pixfont.PixFont
-
-		func init() {
-			charMap := %#v
-			data := %#v
-			Font = pixfont.NewPixFont(%d, %d, charMap, data)
-			Font.SetVariableWidth(%t)
-		}
-	`
+// packFont takes a mostly textual representation of a pixel font and
+// packs it into a tight uint32 representation, returning that representation
+// plus a "mapping" from character code to encoded position.
+func packFont(w, h int, d map[rune]map[int]string) ([]uint32, map[rune]uint16) {
 	cm := make(map[rune]uint16)
 
 	// Sort the glyph list so the representation is stable across different invocations
@@ -77,15 +66,16 @@ func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
 	//    (height is limited to uint8 255)
 	//
 	// This packed representation stores 1-4 glyphs in a single uint32 (per line).
-	// Each uint32 is trested as four individually-addressable uint8s, and each uint8
-	// can be chosen as the start of a glyph line. Glyphs are stored with their
-	// leftmost pixels in the LSB of a W-bit wide region aligned to the nearest 8 bits.
-	// Glyphs that will not fit are bumped to the next u32.
+	// For efficiency, each glyph must be 8-bit aligned. Glyphs are stored "backwards"
+	// (leftmost pixel in LSB).
+	// Glyphs that will not fit in their entirety will be pushed to the next uint32.
 	//
-	// That is to say, a 4-character font with an 8-pixel width will be stored
-	// one u32 per line, and a 4-character font with a 9-pixel width will be
-	// stored 2 u32 per line (since you cannot fit >2 9-bit integers in a single
-	// u32 and maintain the 8-bit alignment guarantee)
+	// For example:
+	// An 8-pixel font can store 4 glyphs using one uint32 per line.
+	// A 9-pixel font can only store 2, because 9-bit values must be
+	// byte-aligned.
+	// A 17-pixel font can only store 1, because it is impossible to
+	// align two 17-bit values (totalling 34 bits) in 32.
 	//
 	// Lines are stored in consecutive uint32s.
 	//
@@ -138,6 +128,27 @@ func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
 
 		i8 += spacing
 	}
+
+	return encoded, cm
+}
+
+func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
+	template := `
+		package %s
+
+		import "github.com/pbnjay/pixfont"
+
+		var Font *pixfont.PixFont
+
+		func init() {
+			charMap := %#v
+			data := %#v
+			Font = pixfont.NewPixFont(%d, %d, charMap, data)
+			Font.SetVariableWidth(%t)
+		}
+	`
+
+	encoded, cm := packFont(w, h, d)
 
 	fnt := pixfont.NewPixFont(uint8(w), uint8(h), cm, encoded)
 	fnt.SetVariableWidth(v)
