@@ -122,6 +122,7 @@ func OpenBDF(f io.Reader) (*BDFont, error) {
 			// can't support negative X offsets
 			ch.BoundingBox[2] = 0
 		}
+		ch.BoundingBox[0] = fnt.BoundingBox[0]
 
 		// NB DESCENT and OFFSET are negative for character that extend below the baseline.
 		// so ASCENT = (FONT_HEIGHT + DESCENT) [e.g. 24 + -4 = 20] for ascent=20, descent=4
