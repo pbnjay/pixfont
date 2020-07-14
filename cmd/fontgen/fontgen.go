@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -46,6 +47,91 @@ var (
 	outName  = flag.String("o", "", "package name to create (becomes <myfont>.go)")
 )
 
+// packFont takes a mostly textual representation of a pixel font and
+// packs it into a tight uint32 representation, returning that representation
+// plus a "mapping" from character code to encoded position.
+func packFont(w, h int, d map[rune]map[int]string) ([]uint32, map[rune]uint16) {
+	cm := make(map[rune]uint16)
+
+	// Sort the glyph list so the representation is stable across different invocations
+	// of fontgen.
+	chs := make([]int, 0, len(d))
+	for ch, _ := range d {
+		chs = append(chs, int(ch))
+	}
+	sort.IntSlice(chs).Sort()
+
+	// convert from simple character encoding to packed bitfield
+	// NB fonts should be at most 32 pixels wide to fit in the uint32
+	//    (height is limited to uint8 255)
+	//
+	// This packed representation stores 1-4 glyphs in a single uint32 (per line).
+	// For efficiency, each glyph must be 8-bit aligned. Glyphs are stored "backwards"
+	// (leftmost pixel in LSB).
+	// Glyphs that will not fit in their entirety will be pushed to the next uint32.
+	//
+	// For example:
+	// An 8-pixel font can store 4 glyphs using one uint32 per line.
+	// A 9-pixel font can only store 2, because 9-bit values must be
+	// byte-aligned.
+	// A 17-pixel font can only store 1, because it is impossible to
+	// align two 17-bit values (totalling 34 bits) in 32.
+	//
+	// Lines are stored in consecutive uint32s.
+	//
+	//         24      16       8       0
+	//          |       |       |       |
+	// 0     DDDD    CCC     BBBB     A   == 0b00001111000011100000111100000100 == 0x0f0e0f04
+	// 1    D   D   C   C   B   B    A A  == 0b00010001000100010001000100001010 == 0x1111110a
+	// 2    D   D       C    BBBB   A   A == 0b00010001000000010000111100010001 == 0x11010f11
+	// 3    D   D   C   C   B   B   AAAAA == 0b00010001000100010001000100011111 == 0x1111111f
+	// 4     DDDD    CCC     BBBB   A   A == 0b00001111000011100000111100010001 == 0x0f0e0f11
+	// 5                            EEEEE == 0b00000000000000000000000000011111 == 0x0000001f
+	// 6                                E == 0b00000000000000000000000000000001 == 0x00000001
+	// 7                             EEEE == 0b00000000000000000000000000001111 == 0x0000000f
+	// 8                                E == 0b00000000000000000000000000000001 == 0x00000001
+	// 9                            EEEEE == 0b00000000000000000000000000011111 == 0x0000001f
+
+	u8PerCh := ((w - 1) >> 3) + 1 // 0-8 take up 1 byte, 9-16 take up 2, 17-24 take up 3, 24+ take up 4
+	chPerU32 := 4 / u8PerCh       // we can fit 4, 2 or 1 glyphs per u32
+	spacing := 4 / chPerU32       // we must skip 1, 2, or 4 8-bit units between each glyph start
+
+	costPerLine := (len(d) + chPerU32 - 1) / chPerU32 // #of whole u32 per horizontal line in font
+	costTotal := h * costPerLine                      // #of whole u32s required for the whole font
+
+	encoded := make([]uint32, costTotal)
+
+	// i8 tracks the number of 8-bit units we've skipped
+	var i8 int
+	for _, c := range chs {
+		matrix := d[rune(c)]
+
+		i32 := (i8 >> 2) * h // i32 is the index into encoded for the u32 for this char
+		dist := i8 & 0b11    // how many u8 units into the u32 we're offset
+		cm[rune(c)] = uint16((i32 << 2) | dist)
+
+		for y := 0; y < h; y++ {
+			line := encoded[i32+y]
+			var b uint32 = 1 << uint(8*dist)
+
+			if ld, hasLine := matrix[y]; hasLine {
+				for x := 0; x < w; x++ {
+					if len(ld) > x && ld[x] == 'X' {
+						line |= b
+					}
+					b <<= 1
+				}
+			}
+
+			encoded[i32+y] = line
+		}
+
+		i8 += spacing
+	}
+
+	return encoded, cm
+}
+
 func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
 	template := `
 		package %s
@@ -61,46 +147,8 @@ func generatePixFont(name string, w, h int, v bool, d map[rune]map[int]string) {
 			Font.SetVariableWidth(%t)
 		}
 	`
-	encoded := []uint32{}
-	cm := make(map[rune]uint16)
 
-	// convert from simple character encoding to packed bitfield
-	// NB fonts should be at most 32 pixels wide to fit in the uint32
-	//    (height is limited to uint8 255)
-	idx := 0
-	sub := -1 - (w / 8)
-	for c, matrix := range d {
-		sub += 1 + (w / 8)
-		if sub > 3 {
-			sub = 0
-			idx = len(encoded)
-		}
-
-		cm[c] = uint16(sub) | (uint16(idx) << 2)
-		for y := 0; y < h; y++ {
-			var line uint32
-			var b uint32 = 1
-			if sub != 0 {
-				line = encoded[idx+y]
-				b <<= uint(8 * sub)
-			}
-
-			if ld, hasLine := matrix[y]; hasLine {
-				for x := 0; x < w; x++ {
-					if len(ld) > x && ld[x] == 'X' {
-						line |= b
-					}
-					b <<= 1
-				}
-			}
-
-			if sub == 0 {
-				encoded = append(encoded, line)
-			} else {
-				encoded[idx+y] = line
-			}
-		}
-	}
+	encoded, cm := packFont(w, h, d)
 
 	fnt := pixfont.NewPixFont(uint8(w), uint8(h), cm, encoded)
 	fnt.SetVariableWidth(v)
